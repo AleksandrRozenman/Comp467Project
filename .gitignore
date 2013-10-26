@@ -4,3 +4,8 @@
 *.sbr
 *.log
 *.ipch
+*.exe
+*.tlog
+*.manifest
+*.obj
+*.pdb
