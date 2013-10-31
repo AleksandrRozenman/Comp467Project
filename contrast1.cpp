@@ -1,11 +1,5 @@
-// Contrast stretching
+// Contrast stretching #1 - proportional scaling
 // by Steven Wirsz
-
-// To do: 
-
-// Ignore outliers
-// apply statistical color blending
-// Collect a number of test images to demonstrate code
 
 #include <iostream>
 #include <stdio.h>
@@ -15,13 +9,15 @@
 using namespace std;
 using namespace cv;
 
-double maxval, minval; // Stores minimum and maximum grayscale values
-
-int main( int argc, char** argv )
+int main2( int argc, char** argv )
 {
+	double maxval = 0;
+	double minval = 255; // Stores minimum and maximum grayscale values
+
 	// Read image given by user
 	Mat image = imread( argv[1] );
 	Mat new_image = Mat::zeros( image.size(), image.type() ); // initialize output image
+	Mat new_image2 = Mat::zeros( image.size(), image.type() ); // initialize output image
 	Mat bw_image = Mat::zeros( image.size(), image.type() ); // initialize temporary grayscale image
 	cvtColor( image, bw_image, COLOR_BGR2GRAY ); // create greyscale image
 
@@ -37,7 +33,7 @@ int main( int argc, char** argv )
 
 	// debugging
 	cout << "min: "<<minval<<endl;
-	cout << "min: "<<maxval<<std::endl;
+	cout << "max: "<<maxval<<std::endl;
 	cout << "stretch ratio: "<<(255/(maxval-minval))<<endl;
 
 	
@@ -45,16 +41,32 @@ int main( int argc, char** argv )
 	for( int y = 0; y < image.rows; y++ ) { 
 		for( int x = 0; x < image.cols; x++ ) { 
 			for( int c = 0; c < 3; c++ ) {
-				new_image.at<Vec3b>(y,x)[c] = saturate_cast<uchar>( (255.0/(maxval-minval))*( image.at<Vec3b>(y,x)[c] ) - minval );
+				new_image.at<Vec3b>(y,x)[c] = saturate_cast<uchar>( (255/(maxval-minval))*( image.at<Vec3b>(y,x)[c] -minval) );
 			}
 		}
 	}
-
+	// Smooth new_image by 
+	for( int y = 2; y < image.rows-2; y++ ) { 
+		for( int x = 2; x < image.cols-2; x++ ) { 
+			for( int c = 0; c < 3; c++ ) {
+				// 75% of image contrast from original pixel
+				new_image2.at<Vec3b>(y,x)[c] = saturate_cast<uchar>( (new_image.at<Vec3b>(y,x)[c])*0.75 );
+				// 25% of image contrast mean of surrounding 25 pixels (5x5)
+				for ( int a = 0; a < 5; a++ ) {
+					for ( int b = 0; b < 5; b++ ) {
+						new_image2.at<Vec3b>(y,x)[c] += saturate_cast<uchar>( (new_image.at<Vec3b>(y-2+a,x-2+c)[c])/25*0.25 );
+					}
+				}
+			}
+		}
+	}
 	// Show original and modified
 	namedWindow("Original Image", 1);
-	namedWindow("Modified Image", 1);
+	namedWindow("Contrast Stretched Image", 1);
+	namedWindow("Smoothed and Stretched Image", 1);
 	imshow("Original Image", image);
-	imshow("Modified Image", new_image);
+	imshow("Contrast Stretched Image", new_image);
+	imshow("Smoothed and Stretched Image", new_image2);
 
 	waitKey(); // pause before clearing images
 }
