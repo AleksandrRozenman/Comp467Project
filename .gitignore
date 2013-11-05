@@ -14,4 +14,5 @@
 *.ilk
 *manifest.*
 *.rc
+*.cache
 
