@@ -11,3 +11,7 @@
 *.pdb
 *.*sdf
 *.lastbuildstate
+*.ilk
+*manifest.*
+*.rc
+
