@@ -41,6 +41,11 @@ HWND nonPropContrastCheckBox = 0;
 HWND nonPropContrastText = 0;
 HWND nonPropContrastButton = 0;
 
+// Resizing
+HWND resizeCheckBox = 0;
+HWND resizeText = 0;
+HWND resizeButton = 0;
+
 // Others
 HWND browseText = 0;
 HWND browseButton = 0;
@@ -64,6 +69,7 @@ bool readImage();
 bool saveImage();
 cv::Mat propContrast(cv::Mat img);
 cv::Mat nonPropContrast(cv::Mat img);
+cv::Mat resize(cv::Mat img);
 int run();
 
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, PSTR lpCmdLine, int nCmdShow)
@@ -163,11 +169,50 @@ int initMainWindow()
 	                            NULL  // Pointer not needed.
 							   );
 
+	resizeCheckBox = CreateWindow(L"BUTTON",
+	                              L"Automatic Resize",
+	                              WS_VISIBLE | WS_CHILD | BS_AUTOCHECKBOX,
+	                              10,
+	                              75,
+	                              15,
+	                              15,
+	                              mainWindowHandle,
+	                              NULL,
+	                              (HINSTANCE)GetWindowLong(mainWindowHandle, GWL_HINSTANCE),
+	                              NULL
+	                             );
+
+	resizeText = CreateWindow(L"STATIC",  // Predefined class; Unicode assumed
+	                          L"Automatic Resize",      // Button text
+	                          WS_VISIBLE | WS_CHILD | SS_LEFT,  // Styles
+	                          30,         // x position
+	                          75,         // y position
+	                          250,        // Button width
+	                          20,        // Button height
+	                          mainWindowHandle,     // Parent window
+	                          NULL,       // No menu.
+	                          (HINSTANCE)GetWindowLong(mainWindowHandle, GWL_HINSTANCE),
+	                          NULL  // Pointer not needed.
+	                         );
+
+	resizeButton = CreateWindow(L"BUTTON",  // Predefined class; Unicode assumed
+	                            L"Run",      // Button text
+	                            WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,  // Styles
+	                            350,         // x position
+	                            70,         // y position
+	                            100,        // Button width
+	                            25,        // Button height
+	                            mainWindowHandle,     // Parent window
+	                            NULL,       // No menu.
+	                            (HINSTANCE)GetWindowLong(mainWindowHandle, GWL_HINSTANCE),
+	                            NULL  // Pointer not needed.
+	                           );
+
 	propContrastCheckBox = CreateWindow(L"BUTTON",
 	                                    L"Contrast stretching (proportional)",
 	                                    WS_VISIBLE | WS_CHILD | BS_AUTOCHECKBOX,
 	                                    10,
-	                                    75,
+	                                    105,
 	                                    15,
 	                                    15,
 	                                    mainWindowHandle,
@@ -180,7 +225,7 @@ int initMainWindow()
 	                                L"Contrast stretching (proportional)",      // Button text
 	                                WS_VISIBLE | WS_CHILD | SS_LEFT,  // Styles
 	                                30,         // x position
-	                                75,         // y position
+	                                105,         // y position
 	                                250,        // Button width
 	                                20,        // Button height
 	                                mainWindowHandle,     // Parent window
@@ -193,7 +238,7 @@ int initMainWindow()
 	                                  L"Run",      // Button text
 	                                  WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,  // Styles
 	                                  350,         // x position
-	                                  70,         // y position
+	                                  100,         // y position
 	                                  100,        // Button width
 	                                  25,        // Button height
 	                                  mainWindowHandle,     // Parent window
@@ -206,7 +251,7 @@ int initMainWindow()
 	                                       L"Contrast stretching (non-proportional)",
 	                                       WS_VISIBLE | WS_CHILD | BS_AUTOCHECKBOX,
 	                                       10,
-	                                       105,
+	                                       135,
 	                                       15,
 	                                       15,
 	                                       mainWindowHandle,
@@ -219,7 +264,7 @@ int initMainWindow()
 	                                   L"Contrast stretching (non-proportional)",      // Button text
 	                                   WS_VISIBLE | WS_CHILD | SS_LEFT,  // Styles
 	                                   30,         // x position
-	                                   105,         // y position
+	                                   135,         // y position
 	                                   250,        // Button width
 	                                   20,        // Button height
 	                                   mainWindowHandle,     // Parent window
@@ -232,7 +277,7 @@ int initMainWindow()
 	                                     L"Run",      // Button text
 	                                     WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,  // Styles
 	                                     350,         // x position
-	                                     100,         // y position
+	                                     130,         // y position
 	                                     100,        // Button width
 	                                     25,        // Button height
 	                                     mainWindowHandle,     // Parent window
@@ -326,12 +371,28 @@ LRESULT CALLBACK mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 				MessageBox(0, L"Error:\nSelect an image.", L"Run Error", MB_OK | MB_ICONERROR);
 			}
 		}
+		else if((HWND)lParam == resizeButton)
+		{
+			if(imageLoaded)
+			{
+				correctedImage = resize(image);
+				correctedImageIsNull = false;
+				cv::namedWindow("Corrected Image", 1);
+				cv::imshow("Corrected Image", correctedImage);
+			}
+			else
+			{
+				MessageBox(0, L"Error:\nSelect an image.", L"Run Error", MB_OK | MB_ICONERROR);
+			}
+		}
 		else if((HWND)lParam == runAllCheckedButton)
 		{
 			if(imageLoaded)
 			{
 				correctedImage = image;//nonPropContrast(image);
 
+				if(BST_CHECKED == Button_GetCheck(resizeCheckBox))
+					correctedImage = resize(correctedImage);
 				if(BST_CHECKED == Button_GetCheck(propContrastCheckBox))
 					correctedImage = propContrast(correctedImage);
 				if(BST_CHECKED == Button_GetCheck(nonPropContrastCheckBox))
@@ -594,6 +655,64 @@ cv::Mat nonPropContrast(cv::Mat img)
 	}
 
 	return new_image2;
+}
+
+cv::Mat resize(cv::Mat img)
+{
+	cv::Mat image = img;
+	cv::Mat bw_image = cv::Mat::zeros( image.size(), image.type() ); // initialize temporary grayscale image
+	cv::cvtColor( image, bw_image, cv::COLOR_BGR2GRAY ); // create greyscale image
+	cv::Canny( bw_image, bw_image, 10, 100, 3 ); // sharply define borders in the black-and-white image
+	
+	int left=1,right=bw_image.cols,top=1,bottom=bw_image.rows;
+
+	// detect bottom of image
+	bool diff=false;
+	do {
+		for( int n = left; n < right; n++ ) { 
+			if (cv::saturate_cast<uchar>(bw_image.at<cv::Vec3b>(bottom,n)[1]) != cv::saturate_cast<uchar>(bw_image.at<cv::Vec3b>(bottom,left)[1]))
+				diff=true;
+		}
+		bottom--;
+	} while (diff==false && bottom >= 1);
+	
+	// detect top of image
+	diff=false;
+	do {
+		for( int n = left; n < right; n++ ) { 
+			if (cv::saturate_cast<uchar>(bw_image.at<cv::Vec3b>(top,n)[1]) != cv::saturate_cast<uchar>(bw_image.at<cv::Vec3b>(top,left)[1]))
+				diff=true;
+		}
+		top++;
+	} while (diff==false && top < bottom);
+	
+	// detect right of image
+	diff=false;
+	do {
+		for( int n = top; n < bottom; n++ ) { 
+			if (cv::saturate_cast<uchar>(bw_image.at<cv::Vec3b>(n,right)[1]) != cv::saturate_cast<uchar>(bw_image.at<cv::Vec3b>(top,right)[1]))
+				diff=true;
+		}
+		right--;
+	} while (diff==false && right >= 1);
+
+	// detect left of image
+	diff=false;
+	do {
+		for( int n = 1; n < bw_image.rows; n++ ) { 
+			if (cv::saturate_cast<uchar>(bw_image.at<cv::Vec3b>(n,left)[1]) != cv::saturate_cast<uchar>(bw_image.at<cv::Vec3b>(top,left)[1])) {
+				diff=true;
+			}
+		}
+		left++;
+	} while (diff==false && left<right);
+
+	// define rectangle with new dimensions and resize
+	cv::Rect rec(left, top, right-left, bottom-top);
+	cv::Mat new_image = image(rec);
+	
+	// Show original and modified
+	return new_image;
 }
 
 int run()
