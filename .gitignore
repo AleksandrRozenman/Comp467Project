@@ -9,3 +9,5 @@
 *.manifest
 *.obj
 *.pdb
+*.*sdf
+*.lastbuildstate
