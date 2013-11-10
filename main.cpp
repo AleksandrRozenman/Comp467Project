@@ -596,7 +596,7 @@ cv::Mat propContrast(cv::Mat img)
 				// 25% of image contrast mean of surrounding 25 pixels (5x5)
 				for ( int a = 0; a < 5; a++ ) {
 					for ( int b = 0; b < 5; b++ ) {
-						new_image2.at<cv::Vec3b>(y,x)[c] += cv::saturate_cast<uchar>( (new_image.at<cv::Vec3b>(y-2+a,x-2+c)[c])/25*0.25 );
+						new_image2.at<cv::Vec3b>(y,x)[c] += cv::saturate_cast<uchar>( (new_image.at<cv::Vec3b>(y-2+a,x-2+b)[c])/25*0.25 );
 					}
 				}
 			}
@@ -614,6 +614,19 @@ cv::Mat nonPropContrast(cv::Mat img)
 	cv::Mat image = img;
 	cv::Mat new_image = cv::Mat::zeros( image.size(), image.type() ); // initialize output image
 	cv::Mat new_image2 = cv::Mat::zeros( image.size(), image.type() ); // initialize output image
+
+	
+	// Traverse through image, find minimum and maximum
+	for( int y = 0; y < image.rows; y++ ) { 
+		for( int x = 0; x < image.cols; x++ ) { 
+			for( int c = 0; c < 3; c++ ) {
+				if (minval[c]>cv::saturate_cast<uchar>(image.at<cv::Vec3b>(y,x)[c]))
+					minval[c] = cv::saturate_cast<uchar>(image.at<cv::Vec3b>(y,x)[c]);
+				if (maxval[c]<cv::saturate_cast<uchar>(image.at<cv::Vec3b>(y,x)[c]))
+					maxval[c] = cv::saturate_cast<uchar>(image.at<cv::Vec3b>(y,x)[c]);
+			}
+		}
+	}
 
 	// Create new_image by shifting minimum contrast down to zero and multiplying to stretch maximum contrast to 255
 	for( int y = 0; y < image.rows; y++ ) { 
@@ -647,7 +660,7 @@ cv::Mat nonPropContrast(cv::Mat img)
 				// 25% of image contrast mean of surrounding 25 pixels (5x5)
 				for ( int a = 0; a < 5; a++ ) {
 					for ( int b = 0; b < 5; b++ ) {
-						new_image2.at<cv::Vec3b>(y,x)[c] += cv::saturate_cast<uchar>( (new_image.at<cv::Vec3b>(y-2+a,x-2+c)[c])/25*0.25 );
+						new_image2.at<cv::Vec3b>(y,x)[c] += cv::saturate_cast<uchar>( (new_image.at<cv::Vec3b>(y-2+a,x-2+b)[c])/25*0.25 );
 					}
 				}
 			}
