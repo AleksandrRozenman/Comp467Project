@@ -126,6 +126,9 @@ HWND runAllCheckedButton = 0;
 HWND saveButton = 0;
 HWND resetButton = 0;
 HWND showCurrentButton = 0;
+HWND runCombinedButton = 0;
+HWND applyCombinedButton = 0;
+bool combinedLoaded = false;
 
 // Image
 cv::Mat image;
@@ -753,6 +756,32 @@ int initMainWindow()
 	                                 NULL  // Pointer not needed.
 							        );
 
+	runCombinedButton = CreateWindow(L"BUTTON",  // Predefined class; Unicode assumed
+	                                 L"Run all in parallel",      // Button text
+	                                 WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,  // Styles
+	                                 400,         // x position
+	                                 490,         // y position
+	                                 145,        // Button width
+	                                 25,        // Button height
+	                                 mainWindowHandle,     // Parent window
+	                                 NULL,       // No menu.
+	                                 (HINSTANCE)GetWindowLong(mainWindowHandle, GWL_HINSTANCE),
+	                                 NULL  // Pointer not needed.
+							        );
+
+	applyCombinedButton = CreateWindow(L"BUTTON",  // Predefined class; Unicode assumed
+	                                   L"Apply",      // Button text
+	                                   WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,  // Styles
+	                                   550,         // x position
+	                                   490,         // y position
+	                                   100,        // Button width
+	                                   25,        // Button height
+	                                   mainWindowHandle,     // Parent window
+	                                   NULL,       // No menu.
+	                                   (HINSTANCE)GetWindowLong(mainWindowHandle, GWL_HINSTANCE),
+	                                   NULL  // Pointer not needed.
+							          );
+
 	ShowWindow(mainWindowHandle, SW_SHOW);
 	UpdateWindow(mainWindowHandle);
 
@@ -1182,6 +1211,74 @@ LRESULT CALLBACK mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 				//*/
 			}
 		}
+		else if((HWND)lParam == runCombinedButton)
+		{
+			if(imageLoaded)
+			{
+				combinedLoaded = true;
+				cv::namedWindow("Combined Editing", cv::WINDOW_AUTOSIZE);
+				cv::createTrackbar("prop %", "Combined Editing", &propContrastValue, 100, propContrastCallback);
+				cv::createTrackbar("nonprop %", "Combined Editing", &nonPropContrastValue, 100, nonPropContrastCallback);
+				cv::createTrackbar("Blur", "Combined Editing", &blurValue, 30, blurCallback);
+				cv::createTrackbar("% Noise", "Combined Editing", &noiseValue, 100, noiseCallback);
+				cv::createTrackbar("Bilateral", "Combined Editing", &bilateralValue, 20, bilateralCallback);
+				cv::createTrackbar("smooth %", "Combined Editing", &smoothValue, 100, smoothCallback);
+				cv::createTrackbar("White->0", "Combined Editing", &whiteValue, 255, whiteCallback);
+				cv::createTrackbar("Black->0", "Combined Editing", &blackValue, 255, blackCallback);
+
+				// Traverse through image, find minimum and maximum
+				for( int y = 0; y < correctedImage.rows; y++ ) { 
+					for( int x = 0; x < correctedImage.cols; x++ ) { 
+						for( int c = 0; c < 3; c++ ) {
+							if (nonPropContrastMinval[c]>cv::saturate_cast<uchar>(correctedImage.at<cv::Vec3b>(y,x)[c]))
+								nonPropContrastMinval[c] = cv::saturate_cast<uchar>(correctedImage.at<cv::Vec3b>(y,x)[c]);
+							if (nonPropContrastMaxval[c]<cv::saturate_cast<uchar>(correctedImage.at<cv::Vec3b>(y,x)[c]))
+								nonPropContrastMaxval[c] = cv::saturate_cast<uchar>(correctedImage.at<cv::Vec3b>(y,x)[c]);
+						}
+					}
+				}
+
+				cv::Mat bw;
+				cv::cvtColor( correctedImage, bw, cv::COLOR_BGR2GRAY ); // create greyscale image
+
+				// Traverse through image, find minimum and maximum
+				for( int y = 0; y < bw.rows; y++ ) { 
+					for( int x = 0; x < bw.cols; x++ ) { 
+						if (propContrastMinval>cv::saturate_cast<uchar>(bw.at<cv::Vec3b>(y,x)[0]))
+							propContrastMinval = cv::saturate_cast<uchar>(bw.at<cv::Vec3b>(y,x)[0]);
+						if (propContrastMaxval<cv::saturate_cast<uchar>(bw.at<cv::Vec3b>(y,x)[0]))
+							propContrastMaxval = cv::saturate_cast<uchar>(bw.at<cv::Vec3b>(y,x)[0]);
+					}
+				}
+
+				//noiseCallback(0, 0);
+			}
+			else
+			{
+				MessageBox(0, L"Error:\nSelect an image.", L"Run Error", MB_OK | MB_ICONERROR);
+			}
+		}
+		else if((HWND)lParam == applyCombinedButton)
+		{
+			if(imageLoaded)
+			{
+				if(combinedLoaded)
+				{
+					//*
+					//correctedImage = blackTempImage;
+					cv::destroyWindow("Combined Editing");
+					combinedLoaded = false;
+					correctedImageIsNull = false;
+					cv::namedWindow("Corrected Image", 1);
+					cv::imshow("Corrected Image", correctedImage);
+					//*/
+				}
+			}
+			else
+			{
+				MessageBox(0, L"Error:\nSelect an image.", L"Run Error", MB_OK | MB_ICONERROR);
+			}
+		}
 		
 		return 0;
 
@@ -1480,8 +1577,16 @@ cv::Mat resize(cv::Mat img)
 void blurCallback(int, void*)
 {
 	cv::GaussianBlur(correctedImage, blurTempImage, cv::Size( blurValue*2+1, blurValue*2+1 ), 0, 0);
-	cv::imshow( "Gaussian Blur", blurTempImage );
-	blurLoaded = true;
+	if(combinedLoaded)
+	{
+		correctedImage = blurTempImage;
+		imshow("Combined Editing", correctedImage);
+	}
+	else
+	{
+		cv::imshow( "Gaussian Blur", blurTempImage );
+		blurLoaded = true;
+	}
 }
 
 void noiseCallback(int, void*)
@@ -1504,15 +1609,32 @@ void noiseCallback(int, void*)
 	cv::merge (_channel,noiseTempImage);
 	noiseTempImage.convertTo (noiseTempImage,CV_8UC(3),1.0,0);
 
-	cv::imshow( "Gaussian Noise", noiseTempImage );
-	noiseLoaded = true;
+	if(combinedLoaded)
+	{
+		correctedImage = noiseTempImage;
+		imshow("Combined Editing", correctedImage);
+	}
+	else
+	{
+		cv::imshow( "Gaussian Noise", noiseTempImage );
+		noiseLoaded = true;
+	}
 }
 
 void bilateralCallback(int, void*)
 {
 	cv::bilateralFilter( correctedImage, bilateralTempImage, bilateralValue*2+1, bilateralValue*4+1, bilateralValue+1 );
-	cv::imshow( "Bilateral Filter", bilateralTempImage );
-	bilateralLoaded = true;
+	
+	if(combinedLoaded)
+	{
+		correctedImage = bilateralTempImage;
+		imshow("Combined Editing", correctedImage);
+	}
+	else
+	{
+		cv::imshow( "Bilateral Filter", bilateralTempImage );
+		bilateralLoaded = true;
+	}
 }
 
 void smoothCallback(int, void*)
@@ -1533,24 +1655,48 @@ void smoothCallback(int, void*)
 		}
 	}
 	
-	cv::imshow( "Mean Smoothing", smoothTempImage );
-	smoothLoaded = true;
+	if(combinedLoaded)
+	{
+		correctedImage = smoothTempImage;
+		imshow("Combined Editing", correctedImage);
+	}
+	else
+	{
+		cv::imshow( "Mean Smoothing", smoothTempImage );
+		smoothLoaded = true;
+	}
 }
 
 void whiteCallback(int, void*)
 {
 	cv::threshold( correctedImage, whiteTempImage, whiteValue, 0, 2 );
 	
-	cv::imshow( "White To Zero", whiteTempImage );
-	whiteLoaded = true;
+	if(combinedLoaded)
+	{
+		correctedImage = whiteTempImage;
+		imshow("Combined Editing", correctedImage);
+	}
+	else
+	{
+		cv::imshow( "White To Zero", whiteTempImage );
+		whiteLoaded = true;
+	}
 }
 
 void blackCallback(int, void*)
 {
 	cv::threshold( correctedImage, blackTempImage, blackValue, 0, 3 );
 
-	cv::imshow( "Black To Zero", blackTempImage );
-	blackLoaded = true;
+	if(combinedLoaded)
+	{
+		correctedImage = blackTempImage;
+		imshow("Combined Editing", correctedImage);
+	}
+	else
+	{
+		cv::imshow( "Black To Zero", blackTempImage );
+		blackLoaded = true;
+	}
 }
 
 void propContrastCallback(int, void*)
@@ -1568,8 +1714,16 @@ void propContrastCallback(int, void*)
 		}
 	}
 	
-	cv::imshow( "Contrast Stretching (Proportional)", propContrastTempImage );
-	propContrastLoaded = true;
+	if(combinedLoaded)
+	{
+		correctedImage = propContrastTempImage;
+		imshow("Combined Editing", correctedImage);
+	}
+	else
+	{
+		cv::imshow( "Contrast Stretching (Proportional)", propContrastTempImage );
+		propContrastLoaded = true;
+	}
 }
 
 void nonPropContrastCallback(int, void*)
@@ -1587,8 +1741,16 @@ void nonPropContrastCallback(int, void*)
 		}
 	}
 	
-	cv::imshow( "Contrast Stretching (Non-Proportional)", nonPropContrastTempImage );
-	nonPropContrastLoaded = true;
+	if(combinedLoaded)
+	{
+		correctedImage = nonPropContrastTempImage;
+		imshow("Combined Editing", correctedImage);
+	}
+	else
+	{
+		cv::imshow( "Contrast Stretching (Non-Proportional)", nonPropContrastTempImage );
+		nonPropContrastLoaded = true;
+	}
 }
 
 int run()
