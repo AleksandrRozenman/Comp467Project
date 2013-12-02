@@ -7,6 +7,7 @@
 using namespace cv;
 
 const char* window_name = "Image Cleaner";
+const char* window_image = "Image";
 Mat orig, bw, src, dst;
 
 int bilateral_value = 0;
@@ -32,17 +33,18 @@ int main( int, char** argv )
 {
 	src = imread( argv[1], 1 );
 	orig = src.clone();
-	namedWindow( window_name, WINDOW_AUTOSIZE );
+	namedWindow( window_name );
 	createTrackbar( "Bilateral", window_name, &bilateral_value, 20, bilateral );
 	createTrackbar( "Blur", window_name, &blur_value, 30, blur );
-	createTrackbar( "C.Stretch1", window_name, &cpstretch_value, 100, cpstretch );
-	createTrackbar( "C.Stretch2", window_name, &cpstretch_value, 100, cpstretch );
+	createTrackbar( "C.StretchC", window_name, &cstretch_value, 100, cstretch );
+	createTrackbar( "C.StretchP", window_name, &cpstretch_value, 100, cpstretch );
 	createTrackbar( "C.Smooth", window_name, &csmooth_value, 100, csmooth );
 	createTrackbar( "G.noise", window_name, &noise_value, 100, noise);
 	createTrackbar( "Black->0", window_name, &blackzero_value, 255, blackzero );
 	createTrackbar( "White->0", window_name, &white_value, 255, whitezero );
 
-	imshow( window_name, src );
+	imshow( window_image, src );
+	
 	waitKey(); // pause before clearing images
 }
 
@@ -56,19 +58,20 @@ void bilateral( int, void* )
 {
 	newFilter(1);
 	bilateralFilter( src, dst, bilateral_value*2+1, bilateral_value*4+1, bilateral_value+1 );
-	imshow( window_name, dst );
+	imshow( window_image, dst );
 }
 
 void blur( int, void* )
 {
 	newFilter(2);
 	GaussianBlur( src, dst, Size( blur_value*2+1, blur_value*2+1 ), 0, 0 );
-	imshow( window_name, dst );
+	imshow( window_image, dst );
 }
 
 void cstretch( int, void* )
 {
 	newFilter(3);
+	dst = src.clone();
 	double maxval[3] = {0, 0, 0};
 	double minval[3] = {255, 255, 255}; // Stores min and max values
   	// Traverse through image, find minimum and maximum
@@ -82,9 +85,7 @@ void cstretch( int, void* )
 			}
 		}
 	}
-    
-  threshold( src, dst, 255, 0, 4 );
-	for( int y = 0; y < src.rows; y++ ) { 
+    for( int y = 0; y < src.rows; y++ ) { 
 		for( int x = 0; x < src.cols; x++ ) { 
 			for( int c = 0; c < 3; c++ ) {
 		// Create new_image by shifting minimum contrast down to zero and multiplying to stretch maximum contrast to 255
@@ -96,12 +97,13 @@ void cstretch( int, void* )
 		}
 	}
 	
-	imshow( window_name, dst );
+	imshow( window_image, dst );
 }
 
 void cpstretch( int, void* )
 {	
 	newFilter(4);
+	dst = src.clone();
 	cv::cvtColor( src, bw, cv::COLOR_BGR2GRAY ); // create greyscale image
 	double maxval = 0;
 	double minval = 255; // Stores minimum and maximum grayscale values
@@ -128,13 +130,13 @@ void cpstretch( int, void* )
 		}
 	}
 	
-	imshow( window_name, dst );
+	imshow( window_image, dst );
 }
 
 void csmooth( int, void* )
 {
 	newFilter(5);
-	threshold( src, dst, 255, 0, 4 );
+	dst = src.clone();
 	for( int y = 2; y < src.rows-2; y++ ) { 
 		for( int x = 2; x < src.cols-2; x++ ) { 
 			for( int c = 0; c < 3; c++ ) {
@@ -149,13 +151,12 @@ void csmooth( int, void* )
 			}
 		}
 	}
-	imshow( window_name, dst );
+	imshow( window_image, dst );
 }
 
 void noise( int, void* )
 {
 	newFilter(6);
-	threshold( src, dst, 255, 0, 4 );
 	dst = src.clone();
 	Mat noisyI;
 	noisyI.create (dst.rows,dst.cols,CV_32FC(1));
@@ -173,14 +174,14 @@ void noise( int, void* )
 	cv::merge (_channel,dst);
 	dst.convertTo (dst,CV_8UC(3),1.0,0);
 
-	imshow( window_name, dst );
+	imshow( window_image, dst );
 }
 
 void whitezero( int, void* )
 {
 	newFilter(7);
 	threshold( src, dst, white_value, 0, 2 );
-	imshow( window_name, dst );
+	imshow( window_image, dst );
 }
 
 
@@ -188,5 +189,5 @@ void blackzero( int, void* )
 {
 	newFilter(8);
 	threshold( src, dst, blackzero_value, 0, 3 );
-    imshow( window_name, dst );
+    imshow( window_image, dst );
 }
