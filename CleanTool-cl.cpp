@@ -3,10 +3,9 @@
 
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
-#include <stdlib.h>
-#include <stdio.h>
 
 using namespace cv;
+
 const char* window_name = "Image Cleaner";
 Mat orig, bw, src, dst;
 
@@ -18,6 +17,7 @@ int csmooth_value = 0;
 int noise_value = 0;
 int blackzero_value = 0;
 int white_value = 255;
+int last_filter = 0;
 
 void bilateral( int, void* );
 void blur( int, void* );
@@ -30,39 +30,45 @@ void whitezero( int, void* );
 
 int main( int, char** argv )
 {
-  src = imread( argv[1], 1 );
-  orig = src;
-  namedWindow( window_name, WINDOW_AUTOSIZE );
-  createTrackbar( "Bilateral", window_name, &bilateral_value, 20, bilateral );
-  createTrackbar( "Blur", window_name, &blur_value, 30, blur );
-  createTrackbar( "C.Stretch1", window_name, &cpstretch_value, 100, cpstretch );
-  createTrackbar( "C.Stretch2", window_name, &cpstretch_value, 100, cpstretch );
-  createTrackbar( "C.Smooth", window_name, &csmooth_value, 100, csmooth );
-  createTrackbar( "G.noise", window_name, &noise_value, 100, noise);
-  createTrackbar( "Black->0", window_name, &blackzero_value, 255, blackzero );
-  createTrackbar( "White->0", window_name, &white_value, 255, whitezero );
+	src = imread( argv[1], 1 );
+	orig = src.clone();
+	namedWindow( window_name, WINDOW_AUTOSIZE );
+	createTrackbar( "Bilateral", window_name, &bilateral_value, 20, bilateral );
+	createTrackbar( "Blur", window_name, &blur_value, 30, blur );
+	createTrackbar( "C.Stretch1", window_name, &cpstretch_value, 100, cpstretch );
+	createTrackbar( "C.Stretch2", window_name, &cpstretch_value, 100, cpstretch );
+	createTrackbar( "C.Smooth", window_name, &csmooth_value, 100, csmooth );
+	createTrackbar( "G.noise", window_name, &noise_value, 100, noise);
+	createTrackbar( "Black->0", window_name, &blackzero_value, 255, blackzero );
+	createTrackbar( "White->0", window_name, &white_value, 255, whitezero );
 
+	imshow( window_name, src );
+	waitKey(); // pause before clearing images
+}
 
-  noise( 0, 0 );
-  waitKey(); // pause before clearing images
+void newFilter( int id )
+{
+	if (last_filter != id && last_filter != 0) {src = dst.clone();}
+	last_filter=id;
 }
 
 void bilateral( int, void* )
 {
+	newFilter(1);
 	bilateralFilter( src, dst, bilateral_value*2+1, bilateral_value*4+1, bilateral_value+1 );
-
 	imshow( window_name, dst );
 }
 
 void blur( int, void* )
 {
+	newFilter(2);
 	GaussianBlur( src, dst, Size( blur_value*2+1, blur_value*2+1 ), 0, 0 );
-
 	imshow( window_name, dst );
 }
 
 void cstretch( int, void* )
 {
+	newFilter(3);
 	double maxval[3] = {0, 0, 0};
 	double minval[3] = {255, 255, 255}; // Stores min and max values
   	// Traverse through image, find minimum and maximum
@@ -95,10 +101,10 @@ void cstretch( int, void* )
 
 void cpstretch( int, void* )
 {	
-
-   cv::cvtColor( src, bw, cv::COLOR_BGR2GRAY ); // create greyscale image
-   double maxval = 0;
-   double minval = 255; // Stores minimum and maximum grayscale values
+	newFilter(4);
+	cv::cvtColor( src, bw, cv::COLOR_BGR2GRAY ); // create greyscale image
+	double maxval = 0;
+	double minval = 255; // Stores minimum and maximum grayscale values
 
 	// Traverse through image, find minimum and maximum
 	for( int y = 0; y < bw.rows; y++ ) {
@@ -127,7 +133,8 @@ void cpstretch( int, void* )
 
 void csmooth( int, void* )
 {
-  threshold( src, dst, 255, 0, 4 );
+	newFilter(5);
+	threshold( src, dst, 255, 0, 4 );
 	for( int y = 2; y < src.rows-2; y++ ) { 
 		for( int x = 2; x < src.cols-2; x++ ) { 
 			for( int c = 0; c < 3; c++ ) {
@@ -145,9 +152,9 @@ void csmooth( int, void* )
 	imshow( window_name, dst );
 }
 
-
 void noise( int, void* )
 {
+	newFilter(6);
 	threshold( src, dst, 255, 0, 4 );
 	dst = src.clone();
 	Mat noisyI;
@@ -171,13 +178,15 @@ void noise( int, void* )
 
 void whitezero( int, void* )
 {
-  threshold( src, dst, white_value, 0, 2 );
-  imshow( window_name, dst );
+	newFilter(7);
+	threshold( src, dst, white_value, 0, 2 );
+	imshow( window_name, dst );
 }
 
 
 void blackzero( int, void* )
 {
-  threshold( src, dst, blackzero_value, 0, 3 );
-  imshow( window_name, dst );
+	newFilter(8);
+	threshold( src, dst, blackzero_value, 0, 3 );
+    imshow( window_name, dst );
 }
