@@ -126,6 +126,20 @@ HWND runAllCheckedButton = 0;
 HWND saveButton = 0;
 HWND resetButton = 0;
 HWND showCurrentButton = 0;
+HWND runCombinedButton = 0;
+HWND applyCombinedButton = 0;
+bool combinedLoaded = false;
+cv::Mat combinedTempImage;
+cv::Mat combinedTempImage2;
+int bilateral_value = 0;
+int blur_value = 0;
+int cstretch_value = 0;
+int cpstretch_value = 0;
+int csmooth_value = 0;
+int noise_value = 0;
+int blackzero_value = 0;
+int white_value = 255;
+int lastFilter = 0;
 
 // Image
 cv::Mat image;
@@ -151,6 +165,15 @@ void whiteCallback(int, void*);
 void blackCallback(int, void*);
 void propContrastCallback(int, void*);
 void nonPropContrastCallback(int, void*);
+void newFilter(int id);
+void bilateral( int, void* );
+void blur( int, void* );
+void cstretch( int, void* );
+void cpstretch( int, void* );
+void csmooth( int, void* );
+void noise( int, void* );
+void blackzero( int, void* );
+void whitezero( int, void* );
 int run();
 
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, PSTR lpCmdLine, int nCmdShow)
@@ -753,6 +776,32 @@ int initMainWindow()
 	                                 NULL  // Pointer not needed.
 							        );
 
+	runCombinedButton = CreateWindow(L"BUTTON",  // Predefined class; Unicode assumed
+	                                 L"Run all in parallel",      // Button text
+	                                 WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,  // Styles
+	                                 400,         // x position
+	                                 490,         // y position
+	                                 145,        // Button width
+	                                 25,        // Button height
+	                                 mainWindowHandle,     // Parent window
+	                                 NULL,       // No menu.
+	                                 (HINSTANCE)GetWindowLong(mainWindowHandle, GWL_HINSTANCE),
+	                                 NULL  // Pointer not needed.
+							        );
+
+	applyCombinedButton = CreateWindow(L"BUTTON",  // Predefined class; Unicode assumed
+	                                   L"Apply",      // Button text
+	                                   WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,  // Styles
+	                                   550,         // x position
+	                                   490,         // y position
+	                                   100,        // Button width
+	                                   25,        // Button height
+	                                   mainWindowHandle,     // Parent window
+	                                   NULL,       // No menu.
+	                                   (HINSTANCE)GetWindowLong(mainWindowHandle, GWL_HINSTANCE),
+	                                   NULL  // Pointer not needed.
+							          );
+
 	ShowWindow(mainWindowHandle, SW_SHOW);
 	UpdateWindow(mainWindowHandle);
 
@@ -781,7 +830,7 @@ LRESULT CALLBACK mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			if(readImage())
 			{
 				imageLoaded = true;
-				correctedImage = image;
+				correctedImage = image.clone();
 				SetWindowTextA(mainWindowHandle, name);
 				cv::namedWindow("Original Image", 1);
 				cv::imshow("Original Image", image);
@@ -850,7 +899,7 @@ LRESULT CALLBACK mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			{
 				if(propContrastLoaded)
 				{
-					correctedImage = propContrastTempImage;
+					correctedImage = propContrastTempImage.clone();
 					cv::destroyWindow("Contrast Stretching (Proportional)");
 					propContrastLoaded = false;
 					correctedImageIsNull = false;
@@ -895,7 +944,7 @@ LRESULT CALLBACK mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			{
 				if(nonPropContrastLoaded)
 				{
-					correctedImage = nonPropContrastTempImage;
+					correctedImage = nonPropContrastTempImage.clone();
 					cv::destroyWindow("Contrast Stretching (Non-Proportional)");
 					nonPropContrastLoaded = false;
 					correctedImageIsNull = false;
@@ -927,7 +976,7 @@ LRESULT CALLBACK mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			{
 				if(blurLoaded)
 				{
-					correctedImage = blurTempImage;
+					correctedImage = blurTempImage.clone();
 					cv::destroyWindow("Gaussian Blur");
 					blurLoaded = false;
 					correctedImageIsNull = false;
@@ -959,7 +1008,7 @@ LRESULT CALLBACK mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			{
 				if(noiseLoaded)
 				{
-					correctedImage = noiseTempImage;
+					correctedImage = noiseTempImage.clone();
 					cv::destroyWindow("Gaussian Noise");
 					noiseLoaded = false;
 					correctedImageIsNull = false;
@@ -991,7 +1040,7 @@ LRESULT CALLBACK mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			{
 				if(bilateralLoaded)
 				{
-					correctedImage = bilateralTempImage;
+					correctedImage = bilateralTempImage.clone();
 					cv::destroyWindow("Bilateral Filter");
 					bilateralLoaded = false;
 					correctedImageIsNull = false;
@@ -1023,7 +1072,7 @@ LRESULT CALLBACK mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			{
 				if(smoothLoaded)
 				{
-					correctedImage = smoothTempImage;
+					correctedImage = smoothTempImage.clone();
 					cv::destroyWindow("Mean Smoothing");
 					smoothLoaded = false;
 					correctedImageIsNull = false;
@@ -1055,7 +1104,7 @@ LRESULT CALLBACK mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			{
 				if(whiteLoaded)
 				{
-					correctedImage = whiteTempImage;
+					correctedImage = whiteTempImage.clone();
 					cv::destroyWindow("White To Zero");
 					whiteLoaded = false;
 					correctedImageIsNull = false;
@@ -1087,7 +1136,7 @@ LRESULT CALLBACK mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			{
 				if(blackLoaded)
 				{
-					correctedImage = blackTempImage;
+					correctedImage = blackTempImage.clone();
 					cv::destroyWindow("Black To Zero");
 					blackLoaded = false;
 					correctedImageIsNull = false;
@@ -1140,7 +1189,7 @@ LRESULT CALLBACK mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		{
 			if(!correctedImageIsNull)
 			{
-				correctedImage = image;
+				correctedImage = image.clone();
 				cv::imshow("Corrected Image", correctedImage);
 			}
 		}
@@ -1180,6 +1229,51 @@ LRESULT CALLBACK mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 					MessageBox(0, L"Error:\nCould not save image.", L"Save Image Error", MB_OK | MB_ICONERROR);
 				}
 				//*/
+			}
+		}
+		else if((HWND)lParam == runCombinedButton)
+		{
+			if(imageLoaded)
+			{
+				combinedLoaded = true;
+				combinedTempImage = correctedImage.clone();
+				cv::namedWindow("Combined Editing", cv::WINDOW_AUTOSIZE);
+				cv::createTrackbar("prop %", "Combined Editing", &cpstretch_value, 100, cpstretch);
+				cv::createTrackbar("nonprop %", "Combined Editing", &cstretch_value, 100, cstretch);
+				cv::createTrackbar("Blur", "Combined Editing", &blur_value, 30, blur);
+				cv::createTrackbar("% Noise", "Combined Editing", &noise_value, 100, noise);
+				cv::createTrackbar("Bilateral", "Combined Editing", &bilateral_value, 20, bilateral);
+				cv::createTrackbar("smooth %", "Combined Editing", &csmooth_value, 100, csmooth);
+				cv::createTrackbar("White->0", "Combined Editing", &white_value, 255, whitezero);
+				cv::createTrackbar("Black->0", "Combined Editing", &blackzero_value, 255, blackzero);
+
+				cv::imshow("Combined Editing Image", combinedTempImage);
+			}
+			else
+			{
+				MessageBox(0, L"Error:\nSelect an image.", L"Run Error", MB_OK | MB_ICONERROR);
+			}
+		}
+		else if((HWND)lParam == applyCombinedButton)
+		{
+			if(imageLoaded)
+			{
+				if(combinedLoaded)
+				{
+					//*
+					correctedImage = combinedTempImage2;
+					cv::destroyWindow("Combined Editing");
+					cv::destroyWindow("Combined Editing Image");
+					combinedLoaded = false;
+					correctedImageIsNull = false;
+					cv::namedWindow("Corrected Image", 1);
+					cv::imshow("Corrected Image", correctedImage);
+					//*/
+				}
+			}
+			else
+			{
+				MessageBox(0, L"Error:\nSelect an image.", L"Run Error", MB_OK | MB_ICONERROR);
 			}
 		}
 		
@@ -1304,7 +1398,7 @@ cv::Mat propContrast(cv::Mat img)
 	double minval = 255; // Stores minimum and maximum grayscale values
 
 	// Read image given by user
-	cv::Mat image = img;
+	cv::Mat image = img.clone();
 	cv::Mat new_image = cv::Mat::zeros( image.size(), image.type() ); // initialize output image
 	cv::Mat new_image2 = cv::Mat::zeros( image.size(), image.type() ); // initialize output image
 	cv::Mat bw_image = cv::Mat::zeros( image.size(), image.type() ); // initialize temporary grayscale image
@@ -1360,7 +1454,7 @@ cv::Mat nonPropContrast(cv::Mat img)
 	double minval[3] = {255, 255, 255}; // Stores min and max values
 
 	// Read image given by user
-	cv::Mat image = img;
+	cv::Mat image = img.clone();
 	cv::Mat new_image = cv::Mat::zeros( image.size(), image.type() ); // initialize output image
 	cv::Mat new_image2 = cv::Mat::zeros( image.size(), image.type() ); // initialize output image
 
@@ -1421,7 +1515,7 @@ cv::Mat nonPropContrast(cv::Mat img)
 
 cv::Mat resize(cv::Mat img)
 {
-	cv::Mat image = img;
+	cv::Mat image = img.clone();
 	cv::Mat bw_image = cv::Mat::zeros( image.size(), image.type() ); // initialize temporary grayscale image
 	cv::cvtColor( image, bw_image, cv::COLOR_BGR2GRAY ); // create greyscale image
 	cv::Canny( bw_image, bw_image, 10, 100, 3 ); // sharply define borders in the black-and-white image
@@ -1589,6 +1683,155 @@ void nonPropContrastCallback(int, void*)
 	
 	cv::imshow( "Contrast Stretching (Non-Proportional)", nonPropContrastTempImage );
 	nonPropContrastLoaded = true;
+}
+
+void newFilter( int id )
+{
+	if (lastFilter != id && lastFilter != 0)
+	{
+		combinedTempImage = combinedTempImage2.clone();
+	}
+	
+	lastFilter = id;
+}
+
+void bilateral( int, void* )
+{
+	newFilter(1);
+	cv::bilateralFilter( combinedTempImage, combinedTempImage2, bilateral_value*2+1, bilateral_value*4+1, bilateral_value+1 );
+	cv::imshow( "Combined Editing Image", combinedTempImage2 );
+}
+
+void blur( int, void* )
+{
+	newFilter(2);
+	cv::GaussianBlur( combinedTempImage, combinedTempImage2, cv::Size( blur_value*2+1, blur_value*2+1 ), 0, 0 );
+	cv::imshow( "Combined Editing Image", combinedTempImage2 );
+}
+
+void cstretch( int, void* )
+{
+	newFilter(3);
+	combinedTempImage2 = combinedTempImage.clone();
+	double maxval[3] = {0, 0, 0};
+	double minval[3] = {255, 255, 255}; // Stores min and max values
+  	// Traverse through image, find minimum and maximum
+	for( int y = 0; y < combinedTempImage.rows; y++ ) { 
+		for( int x = 0; x < combinedTempImage.cols; x++ ) { 
+			for( int c = 0; c < 3; c++ ) {
+				if (minval[c]>cv::saturate_cast<uchar>(combinedTempImage.at<cv::Vec3b>(y,x)[c]))
+					minval[c] = cv::saturate_cast<uchar>(combinedTempImage.at<cv::Vec3b>(y,x)[c]);
+				if (maxval[c]<cv::saturate_cast<uchar>(combinedTempImage.at<cv::Vec3b>(y,x)[c]))
+					maxval[c] = cv::saturate_cast<uchar>(combinedTempImage.at<cv::Vec3b>(y,x)[c]);
+			}
+		}
+	}
+    for( int y = 0; y < combinedTempImage.rows; y++ ) { 
+		for( int x = 0; x < combinedTempImage.cols; x++ ) { 
+			for( int c = 0; c < 3; c++ ) {
+		// Create new_image by shifting minimum contrast down to zero and multiplying to stretch maximum contrast to 255
+				double shift = -(minval[c])*((double)cstretch_value/100);
+				double scale = 1+((255/(maxval[c]-minval[c]))-1)*((double)cstretch_value/100);
+				
+				combinedTempImage2.at<cv::Vec3b>(y,x)[c] = cv::saturate_cast<uchar>(scale*( combinedTempImage.at<cv::Vec3b>(y,x)[c] + shift) );
+			}
+		}
+	}
+	
+	cv::imshow( "Combined Editing Image", combinedTempImage2 );
+}
+
+void cpstretch( int, void* )
+{	
+	newFilter(4);
+	cv::Mat bw;
+	combinedTempImage2 = combinedTempImage.clone();
+	cv::cvtColor( combinedTempImage, bw, cv::COLOR_BGR2GRAY ); // create greyscale image
+	double maxval = 0;
+	double minval = 255; // Stores minimum and maximum grayscale values
+
+	// Traverse through image, find minimum and maximum
+	for( int y = 0; y < bw.rows; y++ ) {
+		for( int x = 0; x < bw.cols; x++ ) {
+			if (minval>cv::saturate_cast<uchar>(bw.at<cv::Vec3b>(y,x)[0]))
+				minval = cv::saturate_cast<uchar>(bw.at<cv::Vec3b>(y,x)[0]);
+			if (maxval<cv::saturate_cast<uchar>(bw.at<cv::Vec3b>(y,x)[0]))
+				maxval = cv::saturate_cast<uchar>(bw.at<cv::Vec3b>(y,x)[0]);
+		}
+	}
+
+	for( int y = 0; y < combinedTempImage.rows; y++ ) {
+		for( int x = 0; x < combinedTempImage.cols; x++ ) {
+			for( int c = 0; c < 3; c++ ) {
+		// Create new_image by shifting minimum contrast down to zero and multiplying to stretch maximum contrast to 255
+				double shift = -(minval)*((double)cpstretch_value/100);
+				double scale = 1+((255/(maxval-minval))-1)*((double)cpstretch_value/100);
+
+				combinedTempImage2.at<cv::Vec3b>(y,x)[c] = cv::saturate_cast<uchar>(scale*( combinedTempImage.at<cv::Vec3b>(y,x)[c] + shift) );
+			}
+		}
+	}
+	
+	cv::imshow( "Combined Editing Image", combinedTempImage2 );
+}
+
+void csmooth( int, void* )
+{
+	newFilter(5);
+	combinedTempImage2 = combinedTempImage.clone();
+	for( int y = 2; y < combinedTempImage.rows-2; y++ ) { 
+		for( int x = 2; x < combinedTempImage.cols-2; x++ ) { 
+			for( int c = 0; c < 3; c++ ) {
+				// 75% of image contrast from original pixel
+				combinedTempImage2.at<cv::Vec3b>(y,x)[c] = cv::saturate_cast<uchar>( (combinedTempImage.at<cv::Vec3b>(y,x)[c])*(1-(float)csmooth_value/100 ));
+				// 25% of image contrast mean of surrounding 25 pixels (5x5)
+				for ( int a = 0; a < 5; a++ ) {
+					for ( int b = 0; b < 5; b++ ) {
+						combinedTempImage2.at<cv::Vec3b>(y,x)[c] += cv::saturate_cast<uchar>( (combinedTempImage.at<cv::Vec3b>(y-2+a,x-2+b)[c])/25*(float)csmooth_value/100);
+					}
+				}
+			}
+		}
+	}
+	cv::imshow( "Combined Editing Image", combinedTempImage2 );
+}
+
+void noise( int, void* )
+{
+	newFilter(6);
+	combinedTempImage2 = combinedTempImage.clone();
+	cv::Mat noisyI;
+	noisyI.create (combinedTempImage2.rows,combinedTempImage2.cols,CV_32FC(1));
+	noisyI.setTo (cv::Scalar::all (0));
+
+	cv::vector <cv::Mat>  _channel;
+	combinedTempImage2.convertTo (combinedTempImage2,CV_32FC(3),1.0,0);
+	cv::split(combinedTempImage2,_channel);
+	for(int i=0;i<combinedTempImage2.channels ();i++)
+	{
+		cv::randn(noisyI, cv::Scalar::all(0), cv::Scalar::all((double)noise_value)/2);
+		cv::add(_channel[i],noisyI,_channel[i]);
+	}
+
+	cv::merge (_channel,combinedTempImage2);
+	combinedTempImage2.convertTo (combinedTempImage2,CV_8UC(3),1.0,0);
+
+	cv::imshow( "Combined Editing Image", combinedTempImage2 );
+}
+
+void whitezero( int, void* )
+{
+	newFilter(7);
+	cv::threshold( combinedTempImage, combinedTempImage2, white_value, 0, 2 );
+	cv::imshow( "Combined Editing Image", combinedTempImage2 );
+}
+
+
+void blackzero( int, void* )
+{
+	newFilter(8);
+	cv::threshold( combinedTempImage, combinedTempImage2, blackzero_value, 0, 3 );
+    cv::imshow( "Combined Editing Image", combinedTempImage2 );
 }
 
 int run()
