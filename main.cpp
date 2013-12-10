@@ -871,6 +871,7 @@ LRESULT CALLBACK mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			if(imageLoaded)
 			{
 				cv::namedWindow("Contrast Stretching (Proportional)", cv::WINDOW_AUTOSIZE);
+				propContrastValue = 0;
 				cv::createTrackbar("% modified", "Contrast Stretching (Proportional)", &propContrastValue, 100, propContrastCallback);
 
 				cv::Mat bw;
@@ -917,6 +918,7 @@ LRESULT CALLBACK mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			if(imageLoaded)
 			{
 				cv::namedWindow("Contrast Stretching (Non-Proportional)", cv::WINDOW_AUTOSIZE);
+				nonPropContrastValue = 0;
 				cv::createTrackbar("% modified", "Contrast Stretching (Non-Proportional)", &nonPropContrastValue, 100, nonPropContrastCallback);
 
 				// Traverse through image, find minimum and maximum
@@ -962,6 +964,7 @@ LRESULT CALLBACK mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			if(imageLoaded)
 			{
 				cv::namedWindow("Gaussian Blur", cv::WINDOW_AUTOSIZE);
+				blurValue = 0;
 				cv::createTrackbar("Blur", "Gaussian Blur", &blurValue, 30, blurCallback);
 				blurCallback(0, 0);
 			}
@@ -994,6 +997,7 @@ LRESULT CALLBACK mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			if(imageLoaded)
 			{
 				cv::namedWindow("Gaussian Noise", cv::WINDOW_AUTOSIZE);
+				noiseValue = 0;
 				cv::createTrackbar("% Noise", "Gaussian Noise", &noiseValue, 100, noiseCallback);
 				noiseCallback(0, 0);
 			}
@@ -1026,6 +1030,7 @@ LRESULT CALLBACK mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			if(imageLoaded)
 			{
 				cv::namedWindow("Bilateral Filter", cv::WINDOW_AUTOSIZE);
+				bilateralValue = 0;
 				cv::createTrackbar("Bilateral", "Bilateral Filter", &bilateralValue, 20, bilateralCallback);
 				bilateralCallback(0, 0);
 			}
@@ -1058,6 +1063,7 @@ LRESULT CALLBACK mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			if(imageLoaded)
 			{
 				cv::namedWindow("Mean Smoothing", cv::WINDOW_AUTOSIZE);
+				smoothValue = 100;
 				cv::createTrackbar("% original", "Mean Smoothing", &smoothValue, 100, smoothCallback);
 				smoothCallback(0, 0);
 			}
@@ -1090,6 +1096,7 @@ LRESULT CALLBACK mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			if(imageLoaded)
 			{
 				cv::namedWindow("White To Zero", cv::WINDOW_AUTOSIZE);
+				whiteValue = 255;
 				cv::createTrackbar("White->0", "White To Zero", &whiteValue, 255, whiteCallback);
 				whiteCallback(0, 0);
 			}
@@ -1122,6 +1129,7 @@ LRESULT CALLBACK mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			if(imageLoaded)
 			{
 				cv::namedWindow("Black To Zero", cv::WINDOW_AUTOSIZE);
+				blackValue = 0;
 				cv::createTrackbar("Black->0", "Black To Zero", &blackValue, 255, blackCallback);
 				blackCallback(0, 0);
 			}
@@ -1238,6 +1246,17 @@ LRESULT CALLBACK mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 				combinedLoaded = true;
 				combinedTempImage = correctedImage.clone();
 				cv::namedWindow("Combined Editing", cv::WINDOW_NORMAL);
+				
+				bilateral_value = 0;
+				blur_value = 0;
+				cstretch_value = 0;
+				cpstretch_value = 0;
+				csmooth_value = 0;
+				noise_value = 0;
+				blackzero_value = 0;
+				white_value = 255;
+				lastFilter = 0;
+				
 				cv::createTrackbar("prop %", "Combined Editing", &cpstretch_value, 100, cpstretch);
 				cv::createTrackbar("nonprop %", "Combined Editing", &cstretch_value, 100, cstretch);
 				cv::createTrackbar("Blur", "Combined Editing", &blur_value, 30, blur);
