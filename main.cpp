@@ -1237,7 +1237,7 @@ LRESULT CALLBACK mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			{
 				combinedLoaded = true;
 				combinedTempImage = correctedImage.clone();
-				cv::namedWindow("Combined Editing", cv::WINDOW_AUTOSIZE);
+				cv::namedWindow("Combined Editing", cv::WINDOW_NORMAL);
 				cv::createTrackbar("prop %", "Combined Editing", &cpstretch_value, 100, cpstretch);
 				cv::createTrackbar("nonprop %", "Combined Editing", &cstretch_value, 100, cstretch);
 				cv::createTrackbar("Blur", "Combined Editing", &blur_value, 30, blur);
